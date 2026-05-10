@@ -353,11 +353,44 @@ export let previewCollection = (info) => api.post('api/previewCollection', info)
 export let getCollectionSubgroup = (info) => api.post('api/getCollectionSubgroup', info)
 
 /**
+ * 开始下载BD合集（全部文件下载）
+ * @param info 合集
+ * @returns {Promise<unknown>}
+ */
+export let startBdCollection = (info) => api.post('api/startBdCollection', info)
+
+/**
+ * BD合集预览（不过滤文件）
+ * @param info 合集
+ * @returns {Promise<unknown>}
+ */
+export let bdPreviewCollection = (info) => api.post('api/bdPreviewCollection', info)
+
+/**
  * 将指定id的BGM番剧转换为订阅
  * @param id BGM的ID
  * @returns {Promise<unknown>}
  */
 export let getAniBySubjectId = (id) => api.post(`api/getAniBySubjectId?id=${id}`)
+
+/**
+ * 快速订阅，通过 bangumiId 获取 Mikan 详情页地址
+ * @param id BGM的ID
+ * @returns {Promise<unknown>} Mikan 详情页 URL 字符串
+ */
+export let quickSubscribe = (id) => api.post(`api/quickSubscribe?id=${id}`)
+
+/**
+ * 获取映射数据状态
+ * @returns {Promise<unknown>}
+ */
+export let mappingStatus = () => api.post('api/mappingStatus')
+
+/**
+ * 刷新映射数据
+ * @returns {Promise<unknown>}
+ */
+export let refreshTvdbMapping = () => api.post('api/refreshTvdbMapping')
 
 /**
  * 获取AniBT番剧列表

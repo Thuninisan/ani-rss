@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/Java/latest/bin/**)",
+      "Read(//c/Program Files/Java/jdk-21.0.11/bin/**)",
+      "Read(//c/ProgramData/chocolatey/bin/**)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/12286/scoop/apps/**)",
+      "Read(//c/Users/12286/.m2/wrapper/**)",
+      "Bash(curl -s \"https://bgm.tv/subject/408486\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\")",
+      "Bash(mvn compile *)",
+      "Bash(./mvnw compile *)",
+      "WebFetch(domain:unpkg.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://unpkg.com/bangumi-data@0.3/dist/data.json\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/bangumi-data/bangumi-data/master/dist/data.json\")",
+      "Bash(curl -sI \"https://unpkg.com/bangumi-data@0.3/dist/data.json\")",
+      "Bash(curl -s \"https://unpkg.com/bangumi-data@0.3.208/dist/data.json\")",
+      "Bash(curl -s \"https://unpkg.com/bangumi-data@0.3.207/dist/data.json\")",
+      "Bash(curl -s \"https://unpkg.com/bangumi-data@0.3.200/dist/data.json\")",
+      "Bash(curl -s \"https://unpkg.com/bangumi-data@0.3.100/dist/data.json\")",
+      "Bash(curl *)",
+      "Bash(mvn install *)",
+      "Bash(mvn test *)"
+    ]
+  }
+}

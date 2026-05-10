@@ -4,6 +4,7 @@ import ani.rss.commons.FileUtils;
 import ani.rss.entity.Ani;
 import ani.rss.enums.StringEnum;
 import ani.rss.util.basic.HttpReq;
+import ani.rss.util.other.BgmUtil;
 import ani.rss.util.other.TmdbUtils;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ArrayUtil;
@@ -76,6 +77,7 @@ public class ScrapeService {
      */
     public void scrapeMovie(Ani ani, Boolean force) throws Exception {
         Tmdb tmdb = ani.getTmdb();
+        String bgmId = BgmUtil.getSubjectId(ani);
 
         // 更新tmdb信息
         Optional<Tmdb> tmdbOptional = TmdbUtils.getTmdb(tmdb, TmdbTypeEnum.MOVIE);
@@ -114,7 +116,7 @@ public class ScrapeService {
         // 保存nfo
         String outputPath = downloadPath + "/" + mainName + ".nfo";
         if (force || !FileUtil.exist(outputPath)) {
-            nfoGenerator.generateMovieNfo(tmdb, outputPath);
+            nfoGenerator.generateMovieNfo(tmdb, bgmId, outputPath);
         }
 
         String posterPath = tmdb.getPosterPath();
@@ -153,6 +155,7 @@ public class ScrapeService {
      */
     public void scrapeTv(Ani ani, Boolean force) throws Exception {
         Tmdb tmdb = ani.getTmdb();
+        String bgmId = BgmUtil.getSubjectId(ani);
 
         // 更新tmdb信息
         Optional<Tmdb> tmdbOptional = TmdbUtils.getTmdb(tmdb, TmdbTypeEnum.TV);
@@ -171,7 +174,7 @@ public class ScrapeService {
         // tvshow.nfo
         String tvShowNfoFile = downloadPath.getParent() + "/tvshow.nfo";
         if (force || !FileUtil.exist(tvShowNfoFile)) {
-            nfoGenerator.generateTvShowNfo(tmdb, tvShowNfoFile);
+            nfoGenerator.generateTvShowNfo(tmdb, bgmId, tvShowNfoFile);
         }
 
         String posterPath = tmdb.getPosterPath();
@@ -219,7 +222,7 @@ public class ScrapeService {
         // 季nfo
         String seasonNfoFile = downloadPath + "/season.nfo";
         if (force || !FileUtil.exist(seasonNfoFile)) {
-            nfoGenerator.generateSeasonNfo(tmdbSeason, seasonNfoFile);
+            nfoGenerator.generateSeasonNfo(tmdbSeason, bgmId, seasonNfoFile);
         }
 
         File[] files = FileUtils.listFiles(downloadPath);
@@ -273,7 +276,7 @@ public class ScrapeService {
             // 集图片
             String episodeFile = downloadPath + "/" + mainName + ".nfo";
             if (force || !FileUtil.exist(episodeFile)) {
-                nfoGenerator.generateEpisodeNfo(tmdbEpisode, episodeFile);
+                nfoGenerator.generateEpisodeNfo(tmdbEpisode, bgmId, episodeFile);
             }
         }
     }
@@ -309,5 +312,4 @@ public class ScrapeService {
 
         log.info("已保存图片 {}", saveFile);
     }
-
 }

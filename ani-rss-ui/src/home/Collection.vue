@@ -189,7 +189,7 @@ import {getBgmTitle} from "@/js/http.js";
 
 let start = () => {
   startLoading.value = true
-  http.startCollection(data.value)
+  http.startBdCollection(data.value)
       .then((res) => {
         ElMessageBox.confirm(
             res.message,

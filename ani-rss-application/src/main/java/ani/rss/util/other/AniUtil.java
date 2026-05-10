@@ -3,10 +3,12 @@ package ani.rss.util.other;
 import ani.rss.commons.FileUtils;
 import ani.rss.commons.GsonStatic;
 import ani.rss.dto.RssToAniDTO;
+import com.google.gson.JsonObject;
 import ani.rss.entity.*;
 import ani.rss.service.ClearService;
 import ani.rss.service.DownloadService;
 import ani.rss.service.MikanService;
+import ani.rss.service.TvdbMappingService;
 import ani.rss.util.basic.HttpReq;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
@@ -129,6 +131,9 @@ public class AniUtil {
 
         Ani ani = AniUtil.createAni();
         ani.setUrl(url);
+        if (dto.getBgmEpisodeOffset() != null) {
+            ani.setOffset(Math.min(-dto.getBgmEpisodeOffset(), 0));
+        }
 
         Map<String, String> paramMap = HttpUtil.decodeParamMap(url, StandardCharsets.UTF_8);
 
@@ -167,6 +172,11 @@ public class AniUtil {
                 ani.setBgmUrl(bgmUrl);
         }
 
+        // DTO 提供了 bgmId 时覆盖 Mikan 返回的 bgmUrl，确保分割放送检测使用正确的 Bangumi ID
+        if (StrUtil.isNotBlank(dto.getBgmId())) {
+            ani.setBgmUrl("https://bgm.tv/subject/" + dto.getBgmId());
+        }
+
         String bgmUrl = ani.getBgmUrl();
         String subgroup = ani.getSubgroup();
 
@@ -175,6 +185,14 @@ public class AniUtil {
         BgmInfo bgmInfo = BgmUtil.getBgmInfo(ani, true);
 
         BgmUtil.toAni(bgmInfo, ani);
+
+        // 用 TVDB 的 season 覆盖 Bangumi 解析的 season
+        SpringUtil.getBean(TvdbMappingService.class)
+                .getByBgmId(bgmInfo.getId())
+                .ifPresent(tvdb -> ani.setSeason(tvdb.getTvdbSeason()));
+
+        // 检测分割放送
+        detectSplitCour(ani, bgmInfo.getId());
 
         Config config = ConfigUtil.CONFIG;
 
@@ -229,22 +247,10 @@ public class AniUtil {
             return ani;
         }
 
-        // 自动推断剧集偏移
-        if (config.getOffset()) {
-            List<Item> items = ItemsUtil.getItems(ani, url, subgroup);
-            if (items.isEmpty()) {
-                return ani;
-            }
-            Double offset = -(items.stream()
-                    .map(Item::getEpisode)
-                    .min(Comparator.comparingDouble(i -> i))
-                    .get() - 1);
-            log.debug("自动获取到剧集偏移为 {}", offset);
-            ani.setOffset(offset.intValue());
-
-            for (StandbyRss rss : standbyRssList) {
-                rss.setOffset(offset.intValue());
-            }
+        // 分割放送已在 detectSplitCour 中设置 offset，此处只处理非分割放送
+        Integer part = ani.getPart();
+        if (part == null) {
+            autoDetectOffset(ani);
         }
         return ani;
     }
@@ -497,5 +503,121 @@ public class AniUtil {
                 .setCustomTagsEnable(false);
     }
 
+    /**
+     * 自动推断剧集偏移
+     * 通过对比 RSS 集号与 Bangumi 的 ep/sort 范围判断字幕组使用的编号方式
+     */
+    public static void autoDetectOffset(Ani ani) {
+        Config config = ConfigUtil.CONFIG;
+        if (!config.getOffset()) {
+            return;
+        }
+        String url = ani.getUrl();
+        if (StrUtil.isBlank(url)) {
+            return;
+        }
+        List<Item> items = ItemsUtil.getItems(ani);
+        if (items.isEmpty()) {
+            return;
+        }
+        int offset = determineOffset(ani, items);
+        log.debug("自动获取到剧集偏移为 {}", offset);
+        ani.setOffset(offset);
+        for (StandbyRss rss : ani.getStandbyRssList()) {
+            rss.setOffset(offset);
+        }
+    }
+
+    private static int determineOffset(Ani ani, List<Item> items) {
+        String subjectId = BgmUtil.getSubjectId(ani);
+        if (StrUtil.isBlank(subjectId)) {
+            double min = items.stream().mapToDouble(Item::getEpisode).min().orElse(1);
+            return -(int) (min - 1);
+        }
+        try {
+            List<JsonObject> bgmEpisodes = BgmUtil.getEpisodes(subjectId, 0);
+            if (bgmEpisodes.isEmpty()) {
+                double min = items.stream().mapToDouble(Item::getEpisode).min().orElse(1);
+                return -(int) (min - 1);
+            }
+            Set<Integer> epSet = new HashSet<>();
+            Set<Integer> sortSet = new HashSet<>();
+            for (JsonObject ep : bgmEpisodes) {
+                epSet.add(ep.get("ep").getAsInt());
+                sortSet.add(ep.get("sort").getAsInt());
+            }
+            long epMatches = items.stream()
+                    .map(Item::getEpisode).map(Double::intValue).filter(epSet::contains).count();
+            long sortMatches = items.stream()
+                    .map(Item::getEpisode).map(Double::intValue).filter(sortSet::contains).count();
+            if (sortMatches > epMatches) {
+                return Optional.ofNullable(ani.getOffset()).orElse(0);
+            }
+            return 0;
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * 检测分割放送: 通过 TVDB 聚类找到同季的多个 Bangumi 条目,
+     * 按 Bangumi 最小绝对集号 (sort) 排序确定 Part 号
+     */
+    private static void detectSplitCour(Ani ani, String bgmId) {
+        TvdbMappingService tvdbMappingService = SpringUtil.getBean(TvdbMappingService.class);
+        Map<Integer, List<String>> siblings = tvdbMappingService.getSameSeasonSiblings(bgmId);
+        if (siblings.isEmpty()) {
+            return;
+        }
+
+        List<String> sameSeasonSiblings = siblings.get(ani.getSeason());
+        if (sameSeasonSiblings == null || sameSeasonSiblings.size() <= 1) {
+            return;
+        }
+
+        record SiblingInfo(String bgmId, int firstSort, int firstEp) {}
+        List<SiblingInfo> infoList = new ArrayList<>();
+        for (String siblingBgmId : sameSeasonSiblings) {
+            try {
+                List<JsonObject> episodes = BgmUtil.getEpisodes(siblingBgmId, 0);
+                if (!episodes.isEmpty()) {
+                    JsonObject first = episodes.stream()
+                            .min(Comparator.comparingInt(e ->
+                                    e.has("sort") ? e.get("sort").getAsInt() : e.get("ep").getAsInt()))
+                            .orElse(null);
+                    if (first == null) {
+                        continue;
+                    }
+                    int firstSort = first.has("sort") ? first.get("sort").getAsInt() : first.get("ep").getAsInt();
+                    int firstEp = first.get("ep").getAsInt();
+                    infoList.add(new SiblingInfo(siblingBgmId, firstSort, firstEp));
+                }
+            } catch (Exception e) {
+                log.error("获取 Bangumi {} 集数失败", siblingBgmId, e);
+            }
+        }
+
+        if (infoList.size() <= 1) {
+            return;
+        }
+
+        infoList.sort(Comparator.comparingInt(SiblingInfo::firstSort));
+
+        // Part1 的 sort/ep 作为所有 Part 的 offset 计算基准
+        SiblingInfo part1Info = infoList.get(0);
+        int offset = Math.min(part1Info.firstEp - part1Info.firstSort, 0);
+
+        for (int i = 0; i < infoList.size(); i++) {
+            if (infoList.get(i).bgmId.equals(bgmId)) {
+                int part = i + 1;
+                ani.setPart(part)
+                        .setOffset(offset);
+                log.info("检测到分割放送: {} S{} Part{} (共{}个Part), offset={}",
+                        ani.getTitle(), ani.getSeason(), part, infoList.size(), offset);
+                break;
+            }
+        }
+    }
 
 }

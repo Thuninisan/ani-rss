@@ -4,6 +4,7 @@
   <Logs ref="logsRef"/>
   <Manage ref="manageRef"/>
   <Collection ref="collectionRef"/>
+  <QuickSubscribe ref="quickSubscribeRef"/>
   <TorrentsInfos ref="torrentsInfosRef"/>
   <div class="content">
     <div id="header">
@@ -63,6 +64,9 @@
                 </el-dropdown-item>
                 <el-dropdown-item @click="collectionRef?.show">
                   添加合集
+                </el-dropdown-item>
+                <el-dropdown-item @click="quickSubscribeRef?.show">
+                  快速订阅
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -144,6 +148,7 @@ import Popconfirm from "@/other/Popconfirm.vue";
 import Manage from "./Manage.vue";
 import {useLocalStorage} from "@vueuse/core";
 import Collection from "./Collection.vue";
+import QuickSubscribe from "./QuickSubscribe.vue";
 import TorrentsInfos from "./TorrentsInfos.vue";
 import {elIconClass, initLayout, isNotMobile} from "@/js/global.js";
 import * as http from "@/js/http.js";
@@ -154,6 +159,7 @@ const addRef = ref()
 const logsRef = ref()
 const manageRef = ref()
 const collectionRef = ref()
+const quickSubscribeRef = ref()
 const torrentsInfosRef = ref()
 
 const title = ref('')

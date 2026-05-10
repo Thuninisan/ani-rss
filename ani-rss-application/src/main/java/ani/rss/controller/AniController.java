@@ -71,7 +71,9 @@ public class AniController extends BaseController {
         }
 
         first = AniUtil.ANI_LIST.stream()
-                .filter(it -> it.getTitle().equals(ani.getTitle()) && it.getSeason().equals(ani.getSeason()))
+                .filter(it -> it.getTitle().equals(ani.getTitle())
+                        && it.getSeason().equals(ani.getSeason())
+                        && Objects.equals(it.getPart(), ani.getPart()))
                 .findFirst();
 
         String title = ani.getTitle();
@@ -88,6 +90,10 @@ public class AniController extends BaseController {
             }
         }
 
+        Integer part = ani.getPart();
+        if (part == null || part <= 1) {
+            AniUtil.autoDetectOffset(ani);
+        }
         AniUtil.ANI_LIST.add(ani);
         AniUtil.sync();
         Boolean enable = ani.getEnable();

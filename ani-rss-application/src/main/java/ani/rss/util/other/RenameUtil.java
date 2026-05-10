@@ -69,6 +69,11 @@ public class RenameUtil {
         }
 
         double episode = Double.parseDouble(episodeStr) + offset;
+        if (episode < 0) {
+            ani.setOffset(0);
+            offset = 0;
+            episode = Double.parseDouble(episodeStr);
+        }
         item.setEpisode(episode);
 
         String seasonFormat = String.format("%02d", season);
@@ -100,6 +105,16 @@ public class RenameUtil {
         renameTemplate = renameTemplate.replace("${seasonFormat}", seasonFormat);
         renameTemplate = renameTemplate.replace("${episodeFormat}", episodeFormat);
         renameTemplate = renameTemplate.replace("${season}", String.valueOf(season));
+
+        Integer part = ani.getPart();
+        if (part != null) {
+            String partFormat = String.format("%02d", part);
+            renameTemplate = renameTemplate.replace("${part}", String.valueOf(part));
+            renameTemplate = renameTemplate.replace("${partFormat}", partFormat);
+        } else {
+            renameTemplate = renameTemplate.replace("${part}", "");
+            renameTemplate = renameTemplate.replace("${partFormat}", "");
+        }
         renameTemplate = renameTemplate.replace("${episode}", episodeStr);
         renameTemplate = renameTemplate.replace("${subgroup}", subgroup);
         renameTemplate = renameTemplate.replace("${itemTitle}", itemTitle);

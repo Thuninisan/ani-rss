@@ -855,6 +855,21 @@ public class BgmUtil {
         if (ova) {
             // 剧场版默认不开启摸鱼检测
             ani.setProcrastinating(false);
+        } else {
+            // 自动计算集号偏移
+            if (ani.getOffset() == null || ani.getOffset() == 0) {
+                try {
+                    List<JsonObject> episodes = getEpisodes(bgmInfo.getId(), 0);
+                    if (!episodes.isEmpty()) {
+                        JsonObject first = episodes.get(0);
+                        int sort = first.get("sort").getAsInt();
+                        int ep = first.get("ep").getAsInt();
+                        ani.setOffset(Math.min(ep - sort, 0));
+                    }
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            }
         }
 
         return ani

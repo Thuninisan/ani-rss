@@ -106,6 +106,12 @@ public class Ani implements Serializable {
     private Integer season;
 
     /**
+     * 分割放送的 Part 号 (null 表示非分割放送)
+     */
+    @Schema(description = "分割放送的 Part 号")
+    private Integer part;
+
+    /**
      * 封面本地保存位置
      */
     @Schema(description = "封面本地保存位置")

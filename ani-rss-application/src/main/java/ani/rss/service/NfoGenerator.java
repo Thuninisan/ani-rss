@@ -35,7 +35,7 @@ public class NfoGenerator {
      * @param outputPath  输出位置
      * @throws Exception
      */
-    public void generateEpisodeNfo(TmdbEpisode tmdbEpisode, String outputPath) throws Exception {
+    public void generateEpisodeNfo(TmdbEpisode tmdbEpisode, String bgmId, String outputPath) throws Exception {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
         Document doc = docBuilder.newDocument();
@@ -51,6 +51,7 @@ public class NfoGenerator {
         addElement(doc, rootElement, "episode", tmdbEpisode.getEpisodeNumber());
         addElement(doc, rootElement, "season", tmdbEpisode.getSeasonNumber());
         addElement(doc, rootElement, "runtime", tmdbEpisode.getRuntime());
+        addElement(doc, rootElement, "bangumiid", bgmId);
 
         saveXmlDocument(doc, outputPath);
     }
@@ -62,7 +63,7 @@ public class NfoGenerator {
      * @param outputPath
      * @throws Exception
      */
-    public void generateSeasonNfo(TmdbSeason tmdbSeason, String outputPath) throws Exception {
+    public void generateSeasonNfo(TmdbSeason tmdbSeason, String bgmId, String outputPath) throws Exception {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
         Document doc = docBuilder.newDocument();
@@ -74,6 +75,7 @@ public class NfoGenerator {
         addElement(doc, rootElement, "plot", tmdbSeason.getOverview());
         addElement(doc, rootElement, "outline", tmdbSeason.getOverview());
         addElement(doc, rootElement, "seasonnumber", tmdbSeason.getSeasonNumber());
+        addElement(doc, rootElement, "bangumiid", bgmId);
 
         Date airDate = tmdbSeason.getAirDate();
 
@@ -92,8 +94,8 @@ public class NfoGenerator {
      * @param outputPath 输出位置
      * @throws Exception
      */
-    public void generateTvShowNfo(Tmdb tmdb, String outputPath) throws Exception {
-        generateNfo(tmdb, outputPath, "tvshow");
+    public void generateTvShowNfo(Tmdb tmdb, String bgmId, String outputPath) throws Exception {
+        generateNfo(tmdb, bgmId, outputPath, "tvshow");
     }
 
     /**
@@ -103,8 +105,8 @@ public class NfoGenerator {
      * @param outputPath 输出位置
      * @throws Exception
      */
-    public void generateMovieNfo(Tmdb tmdb, String outputPath) throws Exception {
-        generateNfo(tmdb, outputPath, "movie");
+    public void generateMovieNfo(Tmdb tmdb, String bgmId, String outputPath) throws Exception {
+        generateNfo(tmdb, bgmId, outputPath, "movie");
     }
 
     /**
@@ -115,7 +117,7 @@ public class NfoGenerator {
      * @param rootTag    根标签
      * @throws Exception
      */
-    public void generateNfo(Tmdb tmdb, String outputPath, String rootTag) throws Exception {
+    public void generateNfo(Tmdb tmdb, String bgmId, String outputPath, String rootTag) throws Exception {
         // 创建 XML 文档
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
@@ -127,6 +129,7 @@ public class NfoGenerator {
 
         // 添加基本信息
         addElement(doc, rootElement, "tmdbid", tmdb.getId());
+        addElement(doc, rootElement, "bangumiid", bgmId);
         addElement(doc, rootElement, "title", tmdb.getName());
         addElement(doc, rootElement, "originaltitle", tmdb.getOriginalName());
         addElement(doc, rootElement, "year", DateUtil.year(tmdb.getDate()));

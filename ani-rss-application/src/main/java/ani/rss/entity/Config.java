@@ -667,6 +667,12 @@ public class Config implements Serializable {
     private Boolean scrape;
 
     /**
+     * bgm.ini 生成开关
+     */
+    @Schema(description = "bgm.ini 生成开关")
+    private Boolean bgmIni;
+
+    /**
      * 重名的订阅将允许被替换
      */
     @Schema(description = "重名订阅允许替换")

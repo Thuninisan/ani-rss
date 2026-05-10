@@ -3,16 +3,26 @@
              center
              class="el-dialog-auto-width"
              title="合集预览">
-    <div v-loading="loading">
-      <el-table :data="list" height="500"
-                size="small"
-                scrollbar-always-on
-                stripe>
-        <el-table-column label="标题" min-width="400" prop="title"/>
-        <el-table-column label="重命名" min-width="280" prop="reName"/>
-        <el-table-column label="集数" prop="episode"/>
-        <el-table-column label="大小" min-width="100" prop="size"/>
-      </el-table>
+    <div v-loading="loading" style="max-height: 600px;">
+      <el-scrollbar>
+        <div v-if="episodes.length" style="margin-bottom: 12px;">
+          <el-text tag="b" size="small">正片 ({{ episodes.length }})</el-text>
+          <el-table :data="episodes" size="small" stripe>
+            <el-table-column label="标题" min-width="400" prop="title"/>
+            <el-table-column label="重命名" min-width="280" prop="reName"/>
+            <el-table-column label="集数" prop="episode" width="70"/>
+            <el-table-column label="大小" min-width="100" prop="size"/>
+          </el-table>
+        </div>
+        <div v-if="extras.length">
+          <el-text tag="b" size="small" type="info">Extra ({{ extras.length }})</el-text>
+          <el-table :data="extras" size="small" stripe>
+            <el-table-column label="标题" min-width="400" prop="title"/>
+            <el-table-column label="重命名" min-width="280" prop="reName"/>
+            <el-table-column label="大小" min-width="100" prop="size"/>
+          </el-table>
+        </div>
+      </el-scrollbar>
     </div>
     <div v-if="subgroup !== props.data.ani.subgroup && subgroup" style="margin-top:12px;">
       <el-alert close-text="应用" show-icon @close="closeAlert">
@@ -27,7 +37,7 @@
     </div>
     <div class="action">
       <div>
-        <span>共 {{ list.length }} 项</span>
+        <span>共 {{ list.length }} 项 (正片 {{ episodes.length }} + Extra {{ extras.length }})</span>
       </div>
       <el-button bg icon="Close" text @click="dialogVisible = false">关闭</el-button>
     </div>
@@ -35,7 +45,7 @@
 </template>
 
 <script setup>
-import {ref} from "vue";
+import {computed, ref} from "vue";
 import * as http from "@/js/http.js";
 
 let dialogVisible = ref(false)
@@ -45,11 +55,14 @@ let list = ref([])
 
 let subgroup = ref('')
 
+let episodes = computed(() => list.value.filter(item => item.episode != null))
+let extras = computed(() => list.value.filter(item => item.episode == null))
+
 let show = () => {
   subgroup.value = ''
   dialogVisible.value = true
   loading.value = true
-  http.previewCollection(props.data)
+  http.bdPreviewCollection(props.data)
       .then(res => {
         list.value = res.data
         subgroup.value = getSubgroup()

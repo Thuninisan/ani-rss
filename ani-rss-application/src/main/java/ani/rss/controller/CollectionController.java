@@ -37,6 +37,16 @@ import java.util.stream.Collectors;
 @RestController
 public class CollectionController extends BaseController {
 
+    private static final Set<String> FONT_FORMAT = Set.of("ttf", "otf", "woff", "woff2");
+
+    private static boolean isFontOrNfo(String extName) {
+        if (StrUtil.isBlank(extName)) {
+            return false;
+        }
+        extName = extName.toLowerCase();
+        return "nfo".equals(extName) || FONT_FORMAT.contains(extName);
+    }
+
     @Auth
     @Operation(summary = "开始下载合集")
     @PostMapping("/startCollection")
@@ -270,6 +280,177 @@ public class CollectionController extends BaseController {
                             .setLength(length);
                 })
                 .filter(Objects::nonNull)
+                .toList();
+    }
+
+    @Auth
+    @Operation(summary = "BD合集预览（不过滤文件，Extra 归入 Extra/ 目录）")
+    @PostMapping("/bdPreviewCollection")
+    public Result<List<Item>> bdPreviewCollection(@RequestBody CollectionInfo collectionInfo) {
+        List<Item> preview = bdPreview(collectionInfo);
+        preview = CollUtil.sort(new ArrayList<>(preview), Comparator.comparingDouble(it -> {
+            Double episode = it.getEpisode();
+            return ObjectUtil.defaultIfNull(episode, Double.MAX_VALUE);
+        }));
+        return Result.success(preview);
+    }
+
+    @Auth
+    @Operation(summary = "开始下载BD合集（全部文件下载，正片改名，其余归入 Extra/）")
+    @PostMapping("/startBdCollection")
+    public Result<Void> startBdCollection(@RequestBody CollectionInfo collectionInfo) throws IOException {
+        String torrent = collectionInfo.getTorrent();
+        File tempFile = FileUtil.createTempFile();
+        Base64.decodeToFile(torrent, tempFile);
+        TorrentFile torrentFile;
+        try {
+            torrentFile = new TorrentFile(tempFile);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        Ani ani = collectionInfo.getAni();
+        String title = ani.getTitle();
+        String subgroup = ani.getSubgroup();
+        String downloadPath = ani.getDownloadPath();
+
+        String name = StrFormatter.format("[{}] {} 第{}季", subgroup, title, ani.getSeason());
+        download(name, tempFile, downloadPath, List.of("ANI-RSS合集下载", subgroup));
+
+        TorrentsInfo torrentsInfo = new TorrentsInfo()
+                .setHash(torrentFile.getHexHash());
+
+        Config config = ConfigUtil.CONFIG;
+
+        List<qBittorrent.FileEntity> files = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            ThreadUtil.sleep(500);
+            try {
+                files.addAll(qBittorrent.files(torrentsInfo, false, config));
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            }
+            if (!files.isEmpty()) {
+                break;
+            }
+        }
+
+        Map<String, String> reNameMap = bdPreview(collectionInfo)
+                .stream()
+                .map(item -> {
+                    Optional<qBittorrent.FileEntity> fileEntity = files.stream()
+                            .filter(f -> new File(f.getName()).getName().equals(new File(item.getTitle()).getName()))
+                            .filter(f -> f.getSize().longValue() == item.getLength())
+                            .findFirst();
+                    if (fileEntity.isEmpty()) {
+                        return null;
+                    }
+                    String oldPath = fileEntity.get().getName();
+                    return item.setTitle(oldPath);
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(
+                        Item::getTitle,
+                        Item::getReName
+                ));
+
+        String host = config.getDownloadToolHost();
+
+        for (int i = 0; i < 30; i++) {
+            for (qBittorrent.FileEntity file : files) {
+                String oldPath = file.getName();
+                String newPath = reNameMap.get(oldPath);
+
+                if (newPath == null || newPath.equals(oldPath)) {
+                    continue;
+                }
+                log.info("重命名 {} ==> {}", oldPath, newPath);
+                HttpReq.post(host + "/api/v2/torrents/renameFile")
+                        .form("hash", torrentFile.getHexHash())
+                        .form("oldPath", oldPath)
+                        .form("newPath", newPath)
+                        .thenFunction(HttpResponse::isOk);
+            }
+            files.clear();
+            files.addAll(qBittorrent.files(torrentsInfo, false, config));
+
+            if (CollUtil.containsAll(files.stream()
+                    .map(qBittorrent.FileEntity::getName)
+                    .toList(), reNameMap.values())) {
+                break;
+            }
+            ThreadUtil.sleep(1000);
+        }
+
+        qBittorrent.start(torrentsInfo, config);
+        return Result.success("已经开始下载BD合集");
+    }
+
+    public static synchronized List<Item> bdPreview(CollectionInfo collectionInfo) {
+        String torrent = collectionInfo.getTorrent();
+        File tempFile = FileUtil.createTempFile();
+        Base64.decodeToFile(torrent, tempFile);
+        TorrentFile torrentFile;
+        try {
+            torrentFile = new TorrentFile(tempFile);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        Ani ani = collectionInfo.getAni();
+        long[] lengths = torrentFile.getLengths();
+        AtomicInteger index = new AtomicInteger(0);
+
+        return Arrays.stream(torrentFile.getFilenames())
+                .map(name -> {
+                    name = CharsetUtil.convert(name, "ISO-8859-1", CharsetUtil.UTF_8);
+                    name = ReUtil.replaceAll(name, "[\\\\/]$", "");
+                    name = name.replace("\\", "/");
+                    Item item = new Item();
+                    return item.setTitle(name)
+                            .setLength(lengths[index.getAndIncrement()]);
+                })
+                .filter(item -> {
+                    String name = item.getTitle();
+                    if (name.startsWith("_____padding_file_") && name.contains("BitComet")) {
+                        return false;
+                    }
+                    return true;
+                })
+                .map(item -> {
+                    long length = item.getLength();
+                    Double l = length / 1024.0 / 1024;
+                    String size = NumberUtil.decimalFormat("0.00", l) + "MB";
+                    item.setSize(size)
+                            .setSubgroup(ani.getSubgroup());
+
+                    String title = item.getTitle();
+                    String extName = FileUtil.extName(title);
+                    boolean isMedia = FileUtils.isVideoFormat(extName) || FileUtils.isSubtitleFormat(extName);
+
+                    if (isMedia && RenameUtil.rename(ani, item)) {
+                        String reName = item.getReName();
+                        if (FileUtils.isSubtitleFormat(extName)) {
+                            String lang = FileUtil.extName(FileUtil.mainName(title));
+                            if (StrUtil.isNotBlank(lang)) {
+                                reName += "." + lang;
+                            }
+                        }
+                        reName = reName + "." + extName;
+                        item.setReName(reName);
+                    } else {
+                        String fileName = new File(title).getName();
+
+                        if (isFontOrNfo(extName)) {
+                            item.setReName(fileName);
+                        } else if (title.startsWith("Extra/")) {
+                            item.setReName(title);
+                        } else {
+                            item.setReName("Extra/" + title);
+                        }
+                    }
+
+                    return item.setLength(length);
+                })
                 .toList();
     }
 

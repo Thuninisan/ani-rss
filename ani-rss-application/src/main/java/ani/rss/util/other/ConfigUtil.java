@@ -57,9 +57,9 @@ public class ConfigUtil {
         String ovaDownloadPath = FileUtils.getAbsolutePath(new File(rootPath + "/剧场版"));
         String completedPath = FileUtils.getAbsolutePath(new File(rootPath + "/已完结番剧"));
 
-        String downloadPathTemplate = StrFormatter.format("{}/${title}/Season ${season}", downloadPath);
+        String downloadPathTemplate = StrFormatter.format("{}/${title}/Season ${season} Part ${partFormat}", downloadPath);
         String ovaDownloadPathTemplate = StrFormatter.format("{}/${title}", ovaDownloadPath);
-        String completedPathTemplate = StrFormatter.format("{}/${title}/Season ${season}", completedPath);
+        String completedPathTemplate = StrFormatter.format("{}/${title}/Season ${season} Part ${partFormat}", completedPath);
 
         String password = SecureUtil.md5("admin");
 

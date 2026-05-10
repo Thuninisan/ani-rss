@@ -7,6 +7,8 @@ import ani.rss.entity.BgmInfo;
 import ani.rss.entity.BgmMe;
 import ani.rss.entity.Config;
 import ani.rss.entity.web.Result;
+import ani.rss.service.MikanService;
+import ani.rss.service.TvdbMappingService;
 import ani.rss.util.basic.HttpReq;
 import ani.rss.util.other.AniUtil;
 import ani.rss.util.other.BgmUtil;
@@ -14,6 +16,7 @@ import ani.rss.util.other.ConfigUtil;
 import cn.hutool.core.lang.Opt;
 import com.google.gson.JsonObject;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +28,9 @@ import java.util.Map;
 
 @RestController
 public class BgmController extends BaseController {
+
+    @Resource
+    private TvdbMappingService tvdbMappingService;
 
     @Auth
     @Operation(summary = "搜索BGM条目")
@@ -43,6 +49,16 @@ public class BgmController extends BaseController {
         ani
                 .setCustomDownloadPath(true);
         return Result.success(ani);
+    }
+
+    @Auth
+    @Operation(summary = "快速订阅，通过 bangumiId 获取 Mikan 详情页地址供前端选择字幕组")
+    @PostMapping("/quickSubscribe")
+    public Result<String> quickSubscribe(@RequestParam("id") String id) {
+        String mikanUrl = tvdbMappingService.getMikanIdByBgmId(id)
+                .map(mikanId -> MikanService.getMikanHost() + "/Home/Bangumi/" + mikanId)
+                .orElse("");
+        return Result.success(r -> r.setData(mikanUrl));
     }
 
     @Auth

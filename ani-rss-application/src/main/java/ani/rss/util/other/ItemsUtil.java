@@ -21,6 +21,8 @@ import cn.hutool.core.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.w3c.dom.*;
 
+import com.google.gson.JsonObject;
+
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -251,6 +253,15 @@ public class ItemsUtil {
 
         items = items.stream()
                 .filter(item -> {
+                    Double rawEp = extractRawEpisode(ani, item);
+                    if (rawEp == null) {
+                        return false;
+                    }
+                    item.setEpisode(rawEp);
+                    return true;
+                })
+                .filter(item -> validEpisode(ani, item))
+                .filter(item -> {
                     try {
                         return RenameUtil.rename(ani, item);
                     } catch (Exception e) {
@@ -258,8 +269,77 @@ public class ItemsUtil {
                         log.error(e.getMessage(), e);
                     }
                     return false;
-                }).toList();
+                })
+                .toList();
         return CollUtil.distinct(items, item -> item.getEpisode().toString(), true);
+    }
+
+    /**
+     * 从 RSS 标题中提取原始集号（不应用 offset），用于集号校验
+     */
+    private static Double extractRawEpisode(Ani ani, Item item) {
+        String itemTitle = item.getTitle();
+        itemTitle = itemTitle.replace("+NCOPED", "").trim();
+        itemTitle = itemTitle.replace("\n", " ").trim();
+        itemTitle = itemTitle.replace("\t", " ").trim();
+        itemTitle = itemTitle.replaceAll("\\[([A-Z]|\\d){8}]$", "").trim();
+
+        String e;
+        if (ani.getCustomEpisode()) {
+            e = ReUtil.get(ani.getCustomEpisodeStr(), itemTitle, ani.getCustomEpisodeGroupIndex());
+        } else {
+            e = ReUtil.get(RenameUtil.REG_STR, itemTitle, 2);
+        }
+        if (StrUtil.isBlank(e)) {
+            return null;
+        }
+        String episodeStr = ReUtil.get("\\d+(\\.5)?", e, 0);
+        if (StrUtil.isBlank(episodeStr)) {
+            return null;
+        }
+        return Double.parseDouble(episodeStr);
+    }
+
+    /**
+     * 校验集号是否在 Bangumi ep 范围内，不在范围内的跳过（噪音/错误资源）
+     */
+    private static boolean validEpisode(Ani ani, Item item) {
+        if (ani.getOva()) {
+            return true;
+        }
+        double episode = item.getEpisode();
+        if (episode <= 0) {
+            return false;
+        }
+        String subjectId = BgmUtil.getSubjectId(ani);
+        if (StrUtil.isBlank(subjectId)) {
+            return true;
+        }
+        try {
+            String key = "BGM_getEpisodeId:" + subjectId;
+            List<JsonObject> episodes = CacheUtils.get(key);
+            if (episodes == null) {
+                episodes = BgmUtil.getEpisodes(subjectId, 0);
+                CacheUtils.put(key, episodes, TimeUnit.MINUTES.toMillis(10));
+            }
+            if (episodes.isEmpty()) {
+                return true;
+            }
+            int ep = (int) episode;
+            for (JsonObject e : episodes) {
+                if (e.get("ep").getAsInt() == ep) {
+                    return true;
+                }
+                if (e.has("sort") && e.get("sort").getAsInt() == ep) {
+                    return true;
+                }
+            }
+            log.debug("跳过不在 Bangumi ep 范围内的条目: {} episode={}", item.getTitle(), ep);
+            return false;
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return true;
+        }
     }
 
     /**

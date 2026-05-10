@@ -118,6 +118,7 @@ export let configData = {
     "priorityKeywords": [],
     "procrastinatingMasterOnly": true,
     "limitLoginAttempts": true,
+    "bgmIni": false,
     "buildInfo": '',
     "reverseProxyTrustIpList": [],
     "reverseProxyTrustIpListEnabled": false,

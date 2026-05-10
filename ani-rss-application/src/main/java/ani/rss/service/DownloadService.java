@@ -41,6 +41,9 @@ public class DownloadService {
     @Resource
     private ScrapeService scrapeService;
 
+    @Resource
+    private BgmIniGenerator bgmIniGenerator;
+
     /**
      * 下载动漫
      *
@@ -495,6 +498,16 @@ public class DownloadService {
                 log.error(e.getMessage(), e);
             }
         }
+
+        if (Boolean.TRUE.equals(config.getBgmIni())) {
+            try {
+                String downloadPath = getDownloadPath(ani);
+                bgmIniGenerator.generate(ani, downloadPath, false);
+            } catch (Exception e) {
+                log.error("生成 bgm.ini 失败: {}", ani.getTitle());
+                log.error(e.getMessage(), e);
+            }
+        }
         String text = StrFormatter.format("{} 下载完成", name);
         if (tags.contains(TorrentsTags.BACK_RSS.getValue())) {
             text = StrFormatter.format("(备用RSS) {}", text);
@@ -610,6 +623,18 @@ public class DownloadService {
 
         downloadPathTemplate = downloadPathTemplate.replace("${season}", String.valueOf(season));
         downloadPathTemplate = downloadPathTemplate.replace("${seasonFormat}", seasonFormat);
+
+        Integer part = ani.getPart();
+        if (part != null) {
+            String partFormat = String.format("%02d", part);
+            downloadPathTemplate = downloadPathTemplate.replace("${part}", String.valueOf(part));
+            downloadPathTemplate = downloadPathTemplate.replace("${partFormat}", partFormat);
+        } else {
+            downloadPathTemplate = downloadPathTemplate.replace("${part}", "");
+            downloadPathTemplate = downloadPathTemplate.replace("${partFormat}", "");
+            downloadPathTemplate = downloadPathTemplate.replaceAll("[/\\\\]?\\s*Part\\s*$", "");
+            downloadPathTemplate = downloadPathTemplate.replaceAll("[/\\\\]\\s*Part\\s*[/\\\\]", java.io.File.separator);
+        }
 
         String bgmId = BgmUtil.getSubjectId(ani);
         downloadPathTemplate = downloadPathTemplate.replace("${bgmId}", bgmId);

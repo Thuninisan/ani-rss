@@ -20,4 +20,10 @@ public class RssToAniDTO implements Serializable {
 
     @Schema(description = "字幕组名", defaultValue = "未知字幕组")
     private String subgroup;
+
+    @Schema(description = "Bangumi 集号偏移（当前季第一集对应的 Bangumi 绝对集号 - 1）")
+    private Integer bgmEpisodeOffset;
+
+    @Schema(description = "Bangumi 条目 ID（用于修正 Mikan 返回的 bgmUrl）")
+    private String bgmId;
 }
