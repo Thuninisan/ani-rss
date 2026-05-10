@@ -131,9 +131,6 @@ public class AniUtil {
 
         Ani ani = AniUtil.createAni();
         ani.setUrl(url);
-        if (dto.getBgmEpisodeOffset() != null) {
-            ani.setOffset(Math.min(-dto.getBgmEpisodeOffset(), 0));
-        }
 
         Map<String, String> paramMap = HttpUtil.decodeParamMap(url, StandardCharsets.UTF_8);
 
@@ -191,8 +188,7 @@ public class AniUtil {
                 .getByBgmId(bgmInfo.getId())
                 .ifPresent(tvdb -> ani.setSeason(tvdb.getTvdbSeason()));
 
-        // 检测分割放送
-        detectSplitCour(ani, bgmInfo.getId());
+        
 
         Config config = ConfigUtil.CONFIG;
 
@@ -247,11 +243,9 @@ public class AniUtil {
             return ani;
         }
 
-        // 分割放送已在 detectSplitCour 中设置 offset，此处只处理非分割放送
-        Integer part = ani.getPart();
-        if (part == null) {
-            autoDetectOffset(ani);
-        }
+        // 检测分割放送
+        detectSplitCour(ani, bgmInfo.getId());
+
         return ani;
     }
 
@@ -508,6 +502,10 @@ public class AniUtil {
      * 通过对比 RSS 集号与 Bangumi 的 ep/sort 范围判断字幕组使用的编号方式
      */
     public static void autoDetectOffset(Ani ani) {
+        autoDetectOffset(ani, BgmUtil.getSubjectId(ani));
+    }
+
+    private static void autoDetectOffset(Ani ani, String referenceBgmId) {
         Config config = ConfigUtil.CONFIG;
         if (!config.getOffset()) {
             return;
@@ -516,11 +514,14 @@ public class AniUtil {
         if (StrUtil.isBlank(url)) {
             return;
         }
+        int savedOffset = ani.getOffset();
+        ani.setOffset(0);
         List<Item> items = ItemsUtil.getItems(ani);
+        ani.setOffset(savedOffset);
         if (items.isEmpty()) {
             return;
         }
-        int offset = determineOffset(ani, items);
+        int offset = determineOffset(ani, items, referenceBgmId);
         log.debug("自动获取到剧集偏移为 {}", offset);
         ani.setOffset(offset);
         for (StandbyRss rss : ani.getStandbyRssList()) {
@@ -528,32 +529,29 @@ public class AniUtil {
         }
     }
 
-    private static int determineOffset(Ani ani, List<Item> items) {
-        String subjectId = BgmUtil.getSubjectId(ani);
-        if (StrUtil.isBlank(subjectId)) {
-            double min = items.stream().mapToDouble(Item::getEpisode).min().orElse(1);
-            return -(int) (min - 1);
+    private static int determineOffset(Ani ani, List<Item> items, String referenceBgmId) {
+        if (StrUtil.isBlank(referenceBgmId)) {
+            return 0;
         }
         try {
-            List<JsonObject> bgmEpisodes = BgmUtil.getEpisodes(subjectId, 0);
+            List<JsonObject> bgmEpisodes = BgmUtil.getEpisodes(referenceBgmId, 0);
             if (bgmEpisodes.isEmpty()) {
-                double min = items.stream().mapToDouble(Item::getEpisode).min().orElse(1);
-                return -(int) (min - 1);
+                return 0;
             }
-            Set<Integer> epSet = new HashSet<>();
-            Set<Integer> sortSet = new HashSet<>();
-            for (JsonObject ep : bgmEpisodes) {
-                epSet.add(ep.get("ep").getAsInt());
-                sortSet.add(ep.get("sort").getAsInt());
+            JsonObject first = bgmEpisodes.get(0);
+            int ep = first.get("ep").getAsInt();
+            int sort = first.get("sort").getAsInt();
+            int offset = Math.min(ep - sort, 0);
+
+            double minEpisode = items.stream()
+                    .mapToDouble(Item::getEpisode)
+                    .min()
+                    .orElse(1);
+
+            if (minEpisode + offset <= 0) {
+                return 0;
             }
-            long epMatches = items.stream()
-                    .map(Item::getEpisode).map(Double::intValue).filter(epSet::contains).count();
-            long sortMatches = items.stream()
-                    .map(Item::getEpisode).map(Double::intValue).filter(sortSet::contains).count();
-            if (sortMatches > epMatches) {
-                return Optional.ofNullable(ani.getOffset()).orElse(0);
-            }
-            return 0;
+            return offset;
         } catch (Exception e) {
             log.error(e.getMessage(), e);
             return 0;
@@ -561,63 +559,59 @@ public class AniUtil {
     }
 
     /**
-     * 检测分割放送: 通过 TVDB 聚类找到同季的多个 Bangumi 条目,
-     * 按 Bangumi 最小绝对集号 (sort) 排序确定 Part 号
+     * 检测分割放送并设置 offset: 通过 TVDB 聚类找到同季的多个 Bangumi 条目,
+     * 按 Bangumi 最小绝对集号 (sort) 排序确定 Part 号,
+     * 始终以 sort 最小的 Part1 作为参考调用 autoDetectOffset 进行 RSS 比对
      */
     private static void detectSplitCour(Ani ani, String bgmId) {
         TvdbMappingService tvdbMappingService = SpringUtil.getBean(TvdbMappingService.class);
         Map<Integer, List<String>> siblings = tvdbMappingService.getSameSeasonSiblings(bgmId);
-        if (siblings.isEmpty()) {
-            return;
-        }
 
-        List<String> sameSeasonSiblings = siblings.get(ani.getSeason());
-        if (sameSeasonSiblings == null || sameSeasonSiblings.size() <= 1) {
-            return;
-        }
+        String part1BgmId = bgmId;
 
-        record SiblingInfo(String bgmId, int firstSort, int firstEp) {}
-        List<SiblingInfo> infoList = new ArrayList<>();
-        for (String siblingBgmId : sameSeasonSiblings) {
-            try {
-                List<JsonObject> episodes = BgmUtil.getEpisodes(siblingBgmId, 0);
-                if (!episodes.isEmpty()) {
-                    JsonObject first = episodes.stream()
-                            .min(Comparator.comparingInt(e ->
-                                    e.has("sort") ? e.get("sort").getAsInt() : e.get("ep").getAsInt()))
-                            .orElse(null);
-                    if (first == null) {
-                        continue;
+        if (!siblings.isEmpty()) {
+            List<String> sameSeasonSiblings = siblings.get(ani.getSeason());
+            if (sameSeasonSiblings != null && sameSeasonSiblings.size() > 1) {
+                record SiblingInfo(String bgmId, int firstSort, int firstEp) {}
+                List<SiblingInfo> infoList = new ArrayList<>();
+                for (String siblingBgmId : sameSeasonSiblings) {
+                    try {
+                        List<JsonObject> episodes = BgmUtil.getEpisodes(siblingBgmId, 0);
+                        if (!episodes.isEmpty()) {
+                            JsonObject first = episodes.stream()
+                                    .min(Comparator.comparingInt(e ->
+                                            e.has("sort") ? e.get("sort").getAsInt() : e.get("ep").getAsInt()))
+                                    .orElse(null);
+                            if (first == null) {
+                                continue;
+                            }
+                            int firstSort = first.has("sort") ? first.get("sort").getAsInt() : first.get("ep").getAsInt();
+                            int firstEp = first.get("ep").getAsInt();
+                            infoList.add(new SiblingInfo(siblingBgmId, firstSort, firstEp));
+                        }
+                    } catch (Exception e) {
+                        log.error("获取 Bangumi {} 集数失败", siblingBgmId, e);
                     }
-                    int firstSort = first.has("sort") ? first.get("sort").getAsInt() : first.get("ep").getAsInt();
-                    int firstEp = first.get("ep").getAsInt();
-                    infoList.add(new SiblingInfo(siblingBgmId, firstSort, firstEp));
                 }
-            } catch (Exception e) {
-                log.error("获取 Bangumi {} 集数失败", siblingBgmId, e);
+
+                if (infoList.size() > 1) {
+                    infoList.sort(Comparator.comparingInt(SiblingInfo::firstSort));
+                    part1BgmId = infoList.get(0).bgmId;
+
+                    for (int i = 0; i < infoList.size(); i++) {
+                        if (infoList.get(i).bgmId.equals(bgmId)) {
+                            int part = i + 1;
+                            ani.setPart(part);
+                            log.info("检测到分割放送: {} S{} Part{} (共{}个Part)",
+                                    ani.getTitle(), ani.getSeason(), part, infoList.size());
+                            break;
+                        }
+                    }
+                }
             }
         }
 
-        if (infoList.size() <= 1) {
-            return;
-        }
-
-        infoList.sort(Comparator.comparingInt(SiblingInfo::firstSort));
-
-        // Part1 的 sort/ep 作为所有 Part 的 offset 计算基准
-        SiblingInfo part1Info = infoList.get(0);
-        int offset = Math.min(part1Info.firstEp - part1Info.firstSort, 0);
-
-        for (int i = 0; i < infoList.size(); i++) {
-            if (infoList.get(i).bgmId.equals(bgmId)) {
-                int part = i + 1;
-                ani.setPart(part)
-                        .setOffset(offset);
-                log.info("检测到分割放送: {} S{} Part{} (共{}个Part), offset={}",
-                        ani.getTitle(), ani.getSeason(), part, infoList.size(), offset);
-                break;
-            }
-        }
+        autoDetectOffset(ani, part1BgmId);
     }
 
 }
