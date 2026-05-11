@@ -29,7 +29,7 @@ public class BgmIniGenerator {
             return;
         }
 
-        File iniFile = new File(downloadPath, "bgm.ini");
+        File iniFile = new File(downloadPath, "bangumi.ini");
 
         if (!Boolean.TRUE.equals(force) && iniFile.exists()) {
             return;
