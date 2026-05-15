@@ -48,7 +48,7 @@ public class UpdateUtil {
                 .setLatest("")
                 .setMarkdownBody("");
         try {
-            HttpRequest request = HttpReq.get("https://api.github.com/repos/wushuo894/ani-rss/releases/latest")
+            HttpRequest request = HttpReq.get("https://api.github.com/repos/Thuninisan/ani-rss/releases/latest")
                     .timeout(3000);
 
             String githubToken = config.getGithubToken();

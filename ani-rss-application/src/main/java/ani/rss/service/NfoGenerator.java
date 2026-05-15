@@ -51,7 +51,6 @@ public class NfoGenerator {
         addElement(doc, rootElement, "episode", tmdbEpisode.getEpisodeNumber());
         addElement(doc, rootElement, "season", tmdbEpisode.getSeasonNumber());
         addElement(doc, rootElement, "runtime", tmdbEpisode.getRuntime());
-        addElement(doc, rootElement, "bangumiid", bgmId);
 
         saveXmlDocument(doc, outputPath);
     }
