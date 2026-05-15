@@ -39,12 +39,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Login to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image (temurin)
         uses: docker/build-push-action@v6
         with:
@@ -54,9 +48,7 @@ jobs:
           push: true
           tags: |
             karlkono/ani-rss:latest
-            ghcr.io/karlkono/ani-rss:latest
             karlkono/ani-rss:${{ env.version }}
-            ghcr.io/karlkono/ani-rss:${{ env.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push Docker image (openj9)
@@ -68,9 +60,7 @@ jobs:
           push: true
           tags: |
             karlkono/ani-rss:openj9
-            ghcr.io/karlkono/ani-rss:openj9
             karlkono/ani-rss:${{ env.version }}-openj9
-            ghcr.io/karlkono/ani-rss:${{ env.version }}-openj9
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push Docker image (arm32v7)
@@ -82,8 +72,6 @@ jobs:
           push: true
           tags: |
             karlkono/ani-rss:arm32v7
-            ghcr.io/karlkono/ani-rss:arm32v7
             karlkono/ani-rss:${{ env.version }}-arm32v7
-            ghcr.io/karlkono/ani-rss:${{ env.version }}-arm32v7
           cache-from: type=gha
           cache-to: type=gha,mode=max
