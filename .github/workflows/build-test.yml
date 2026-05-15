@@ -41,5 +41,5 @@ jobs:
           file: ./docker/Dockerfile
           push: true
           tags: |
-            wushuo894/ani-rss:test
-            ghcr.io/wushuo894/ani-rss:test
+            karlkono/ani-rss:test
+            ghcr.io/karlkono/ani-rss:test

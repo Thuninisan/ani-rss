@@ -53,10 +53,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            wushuo894/ani-rss:latest
-            ghcr.io/wushuo894/ani-rss:latest
-            wushuo894/ani-rss:${{ env.version }}
-            ghcr.io/wushuo894/ani-rss:${{ env.version }}
+            karlkono/ani-rss:latest
+            ghcr.io/karlkono/ani-rss:latest
+            karlkono/ani-rss:${{ env.version }}
+            ghcr.io/karlkono/ani-rss:${{ env.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push Docker image (openj9)
@@ -67,10 +67,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            wushuo894/ani-rss:openj9
-            ghcr.io/wushuo894/ani-rss:openj9
-            wushuo894/ani-rss:${{ env.version }}-openj9
-            ghcr.io/wushuo894/ani-rss:${{ env.version }}-openj9
+            karlkono/ani-rss:openj9
+            ghcr.io/karlkono/ani-rss:openj9
+            karlkono/ani-rss:${{ env.version }}-openj9
+            ghcr.io/karlkono/ani-rss:${{ env.version }}-openj9
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push Docker image (arm32v7)
@@ -81,9 +81,9 @@ jobs:
           platforms: linux/arm/v7
           push: true
           tags: |
-            wushuo894/ani-rss:arm32v7
-            ghcr.io/wushuo894/ani-rss:arm32v7
-            wushuo894/ani-rss:${{ env.version }}-arm32v7
-            ghcr.io/wushuo894/ani-rss:${{ env.version }}-arm32v7
+            karlkono/ani-rss:arm32v7
+            ghcr.io/karlkono/ani-rss:arm32v7
+            karlkono/ani-rss:${{ env.version }}-arm32v7
+            ghcr.io/karlkono/ani-rss:${{ env.version }}-arm32v7
           cache-from: type=gha
           cache-to: type=gha,mode=max
