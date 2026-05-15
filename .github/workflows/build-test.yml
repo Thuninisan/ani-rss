@@ -42,4 +42,4 @@ jobs:
           push: true
           tags: |
             karlkono/ani-rss:test
-            ghcr.io/karlkono/ani-rss:test
+            ghcr.io/thuninisan/ani-rss:test
