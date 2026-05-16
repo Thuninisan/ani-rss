@@ -524,6 +524,7 @@ public class AniUtil {
         int offset = determineOffset(ani, items, referenceBgmId);
         log.debug("自动获取到剧集偏移为 {}", offset);
         ani.setOffset(offset);
+        ani.setBangumiOffset(offset);
         for (StandbyRss rss : ani.getStandbyRssList()) {
             rss.setOffset(offset);
         }

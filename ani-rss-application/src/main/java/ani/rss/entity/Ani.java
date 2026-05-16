@@ -66,6 +66,12 @@ public class Ani implements Serializable {
     private Integer offset;
 
     /**
+     * Bangumi 剧集偏移 (用于生成 bangumi.ini, 不会被 RenameUtil 覆盖)
+     */
+    @Schema(description = "Bangumi 剧集偏移")
+    private Integer bangumiOffset;
+
+    /**
      * 发布日期
      */
     @Schema(description = "发布日期")

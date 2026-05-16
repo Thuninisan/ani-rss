@@ -38,7 +38,7 @@ public class BgmIniGenerator {
         FileUtil.mkdir(iniFile.getParentFile());
 
         String bgmId = BgmUtil.getSubjectId(ani);
-        int offset = Optional.ofNullable(ani.getOffset()).orElse(0);
+        int offset = Optional.ofNullable(ani.getBangumiOffset()).orElseGet(() -> Optional.ofNullable(ani.getOffset()).orElse(0));
 
         String iniContent = buildIniContent(bgmId, offset);
 
