@@ -811,7 +811,7 @@ public class BgmUtil {
 
         String platform = bgmInfo.getPlatform();
 
-        boolean ova = List.of("OVA", "剧场版").contains(platform.toUpperCase());
+        boolean ova = List.of("OVA", "剧场版").contains(platform.toUpperCase()) || eps == 1;
 
         Date date = bgmInfo.getDate();
 

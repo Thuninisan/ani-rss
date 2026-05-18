@@ -278,6 +278,9 @@ public class ItemsUtil {
      * 从 RSS 标题中提取原始集号（不应用 offset），用于集号校验
      */
     private static Double extractRawEpisode(Ani ani, Item item) {
+        if (ani.getOva()) {
+            return 1.0;
+        }
         String itemTitle = item.getTitle();
         itemTitle = itemTitle.replace("+NCOPED", "").trim();
         itemTitle = itemTitle.replace("\n", " ").trim();
