@@ -30,4 +30,10 @@ public class CollectionInfo implements Serializable {
      */
     @Schema(description = "bgm")
     private BgmInfo bgmInfo;
+
+    /**
+     * 种子地址 (url)
+     */
+    @Schema(description = "种子地址 (url)")
+    private String torrentUrl;
 }

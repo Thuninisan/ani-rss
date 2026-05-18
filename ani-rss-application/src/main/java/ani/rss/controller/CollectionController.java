@@ -385,6 +385,36 @@ public class CollectionController extends BaseController {
         return Result.success("已经开始下载BD合集");
     }
 
+    @Auth
+    @Operation(summary = "通过URL下载种子文件")
+    @PostMapping("/downloadTorrentByUrl")
+    public Result<Map<String, String>> downloadTorrentByUrl(@RequestBody Map<String, String> body) {
+        String torrentUrl = body.get("torrentUrl");
+        Assert.notBlank(torrentUrl, "torrentUrl 不能为空");
+        String base64 = HttpReq.get(torrentUrl)
+                .thenFunction(res -> {
+                    HttpReq.assertStatus(res);
+                    return Base64.encode(res.bodyBytes());
+                });
+        String filename = FileUtil.getName(URLUtil.getPath(torrentUrl));
+        return Result.success(Map.of("base64", base64, "filename", filename));
+    }
+
+    @Auth
+    @Operation(summary = "通过URL开始下载BD合集")
+    @PostMapping("/startBdCollectionByUrl")
+    public Result<Void> startBdCollectionByUrl(@RequestBody CollectionInfo collectionInfo) throws IOException {
+        String torrentUrl = collectionInfo.getTorrentUrl();
+        Assert.notBlank(torrentUrl, "torrentUrl 不能为空");
+        String base64 = HttpReq.get(torrentUrl)
+                .thenFunction(res -> {
+                    HttpReq.assertStatus(res);
+                    return Base64.encode(res.bodyBytes());
+                });
+        collectionInfo.setTorrent(base64);
+        return startBdCollection(collectionInfo);
+    }
+
     public static synchronized List<Item> bdPreview(CollectionInfo collectionInfo) {
         String torrent = collectionInfo.getTorrent();
         File tempFile = FileUtil.createTempFile();
